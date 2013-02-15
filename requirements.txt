@@ -1,0 +1,4 @@
+Flask-RESTful
+mongoengine
+requests
+requests-cache
