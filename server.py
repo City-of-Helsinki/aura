@@ -1,10 +1,26 @@
 from datetime import datetime
 import json
 import mongoengine
-from flask import Flask
+from flask import Flask, request, make_response
 from flask.ext import restful
 from flask.ext.restful import fields, reqparse
 from models import *
+
+
+app = Flask(__name__)
+api = restful.Api(app)
+
+@api.representation('application/json')
+def output_jsonp(data, code, headers=None):
+    json_str = json.dumps(data)
+    callback = request.args.get('callback', False)
+    if callback:
+        content = str(callback) + '(' + json_str + ');'
+    else:
+        content = json_str
+    resp = make_response(content, code)
+    resp.headers.extend(headers or {})
+    return resp
 
 class ISODateTimeField(fields.Raw):
     """Return a ISO 8601 formatted datetime string"""
@@ -20,9 +36,6 @@ point_fields = {
     'coords': fields.Raw,
     'events': fields.Raw
 }
-
-app = Flask(__name__)
-api = restful.Api(app)
 
 parser = reqparse.RequestParser()
 parser.add_argument('history', type=bool, help="Return plow location history")
