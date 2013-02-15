@@ -4,7 +4,7 @@ jQuery ->
         maxZoom: 18,
         attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="http://cloudmade.com">CloudMade</a>'
     ).addTo(map)
-    url = 'http://golf-88.srv.hosting.fi/api/snowplows/?callback=?'
+    url = 'http://localhost:5000/api/snowplows?callback=?'
     plough_icon = L.icon(
         iconUrl: 'img/bulldozer-helblue.png'
         iconSize: [32, 37]
@@ -18,12 +18,11 @@ jQuery ->
     $.getJSON(url, (data) ->
         console.log "got data for #{ data.length } ploughs"
         for plough in data
-            console.log plough
-            marker = L.marker([plough.loc[1], plough.loc[0]],
+            loc = plough.last_loc
+            marker = L.marker([loc.coords[1], loc.coords[0]],
                 icon: plough_icon
             )
-            ts = moment(plough.timestamp).calendar()
-            console.log ts
+            ts = moment(loc.timestamp).calendar()
             marker.bindPopup("<b>#{ plough.id }</b><br />Sijainti päivitetty #{ ts }")
             marker.addTo(map)
     )
