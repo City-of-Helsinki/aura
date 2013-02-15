@@ -50,6 +50,7 @@ def refresh():
         print "%d new points" % new_points
         if new_points:
             pl.last_loc = pl.points[-1]
+            pl.first_loc = pl.points[0]
             pl.save()
 
 refresh()

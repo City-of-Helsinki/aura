@@ -7,5 +7,6 @@ class Point(EmbeddedDocument):
 
 class Plow(Document):
     id = IntField(unique=True, primary_key=True)
+    first_loc = EmbeddedDocumentField(Point)
     last_loc = EmbeddedDocumentField(Point)
     points = ListField(EmbeddedDocumentField(Point))
