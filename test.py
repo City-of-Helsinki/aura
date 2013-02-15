@@ -15,6 +15,8 @@ connect('test')
 def refresh():
     print "connecting"
     r = requests.get(settings.URL, auth=settings.AUTH)
+    if r.status_code != 200:
+        raise Exception("HTTP request failed with HTTP%d" % r.status_code)
     plow_list = r.json
     #pprint.pprint(plow_list)
     for plow in plow_list:
