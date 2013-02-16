@@ -68,9 +68,10 @@ class SnowPlowList(restful.Resource):
     def get(self):
         plow_res = SnowPlow()
         args = parser.parse_args()
-        history = args['history']
-        plows = Plow.objects.all()
-        return [plow_res.serialize(plow, history) for plow in plows]
+
+        # Exclude the points field to speed up queries.
+        plows = Plow.objects.all().exclude('points')
+        return [plow_res.serialize(plow, False) for plow in plows]
 
 api.add_resource(SnowPlowList, '/api/v1/snowplow/')
 
