@@ -3,7 +3,7 @@ import json
 import mongoengine
 from flask import Flask, request, make_response
 from flask.ext import restful
-from flask.ext.restful import fields, reqparse
+from flask.ext.restful import fields, reqparse, abort
 from models import *
 
 
@@ -38,7 +38,7 @@ point_fields = {
 }
 
 parser = reqparse.RequestParser()
-parser.add_argument('history', type=bool, help="Return plow location history")
+parser.add_argument('history', type=int, help="Number of location history entries to return")
 
 class SnowPlow(restful.Resource):
     @restful.marshal_with(point_fields)
@@ -48,17 +48,30 @@ class SnowPlow(restful.Resource):
     def serialize(self, plow, history):
         last_loc = self.serialize_point(plow.last_loc)
         ret = {'id': unicode(plow.id), 'last_loc': last_loc}
-        if history:
-            ret['history'] = [self.serialize_point(p) for p in plow.points]
+        if history and history > 0:
+            ret['history'] = [self.serialize_point(p) for p in plow.points[-history:-1]]
         return ret
 
+    def get(self, plow_id):
+        args = parser.parse_args()
+        history = args['history']
+        try:
+            plow = Plow.objects.get(id=plow_id)
+        except Plow.DoesNotExist:
+            abort(404, message="Plow {} does not exist".format(plow_id))
+        return self.serialize(plow, history)
+
+api.add_resource(SnowPlow, '/api/v1/snowplow/<int:plow_id>')
+
+class SnowPlowList(restful.Resource):
     def get(self):
+        plow_res = SnowPlow()
         args = parser.parse_args()
         history = args['history']
         plows = Plow.objects.all()
-        return [self.serialize(plow, history) for plow in plows]
+        return [plow_res.serialize(plow, history) for plow in plows]
 
-api.add_resource(SnowPlow, '/api/snowplows')
+api.add_resource(SnowPlowList, '/api/v1/snowplow/')
 
 mongoengine.connect('test')
 
