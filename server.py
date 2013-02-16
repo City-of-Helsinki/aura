@@ -4,8 +4,9 @@ import mongoengine
 from flask import Flask, request, make_response
 from flask.ext import restful
 from flask.ext.restful import fields, reqparse, abort
-from models import *
 
+from models import *
+import settings
 
 app = Flask(__name__)
 api = restful.Api(app)
@@ -73,6 +74,7 @@ class SnowPlowList(restful.Resource):
 
 api.add_resource(SnowPlowList, '/api/v1/snowplow/')
 
-mongoengine.connect('test')
+mongoengine.connect(settings.MONGO_DB)
 
-app.run(debug=True)
+if __name__ == '__main__':
+    app.run(debug=True)
