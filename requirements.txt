@@ -1,5 +1,5 @@
 Flask-RESTful
 mongoengine
-requests
+requests==0.14.2
 requests-cache
 celery-with-mongodb
