@@ -1,4 +1,4 @@
-URL_BASE = 'http://localhost:5000/api/v1/snowplow/'
+URL_BASE = '/api/v1/snowplow/'
 
 map = null
 plows = {}
@@ -41,10 +41,12 @@ refresh_plows = ->
 
             marker = plow.marker
             if plow.last_loc.timestamp != plow_info.last_loc.timestamp
-                ll = marker.getLatLng()
-
-            coords = plow.last_loc.coords
-            marker.setLatLng([coords[1], coords[0]])
+                old_ll = marker.getLatLng()
+                coords = plow_info.last_loc.coords
+                new_ll = new L.LatLng(coords[1], coords[0])
+                console.log "plow #{plow.id} moved " + new_ll.distanceTo(old_ll)
+                marker.setLatLng(new_ll)
+                plow.last_loc = plow_info.last_loc
 
             ts = moment(plow.last_loc.timestamp).calendar()
             marker.unbindPopup()
@@ -88,4 +90,4 @@ jQuery ->
         attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="http://cloudmade.com">CloudMade</a>'
     ).addTo(map)
     refresh_plows()
-    setInterval(refresh_plows, 30000)
+    setInterval(refresh_plows, 10000)
