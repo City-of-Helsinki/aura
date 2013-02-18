@@ -20,41 +20,50 @@ def refresh_plows():
     plow_list = r.json
     print "got info for %d plows" % len(plow_list)
     for plow in plow_list:
-        pl = Plow.objects(id=plow['id'])
+        # Exclude points at first for performance reasons
+        pl = Plow.objects.filter(id=plow['id']).exclude('points')
         if pl:
             pl = pl[0]
         else:
             pl = Plow(id=plow['id'], points=[])
+            pl.save()
 
-        new_points = 0
+        new_points = []
         for point in plow['points']:
             ts = point['timestamp']
             # Parse ISO 8601 timestamp
             ts = datetime.datetime.strptime(ts, "%Y-%m-%dT%H:%M:%S")
+            point['ts'] = ts
+            if ts > pl.last_loc.timestamp:
+                new_points.append(point)
+
+        print "plow %d: %d new points" % (plow['id'], len(new_points))
+        if not new_points:
+            continue
+
+        # Refetch with points included
+        pl = Plow.objects.get(id=plow['id'])
+        for point in new_points:
             point_info = {}
             point_info['coords'] = (point['x'], point['y'])
             point_info['events'] = point['events'].split(',')
-            point_info['timestamp'] = ts
+            point_info['timestamp'] = point['ts']
+            ts = point['ts']
             for idx, p in enumerate(pl.points):
                 # If the timestamp already exists, skip it.
                 if p.timestamp == ts:
                     break
                 if ts < p.timestamp:
                     pl.points.insert(idx, Point(**point_info))
-                    new_points += 1
                     break
             else:
                 pl.points.append(Point(**point_info))
-                new_points += 1
-        print "plow %d: %d new points" % (plow['id'], new_points)
-        if new_points:
-            pl.last_loc = pl.points[-1]
-            pl.first_loc = pl.points[0]
-            pl.save()
+        pl.last_loc = pl.points[-1]
+        pl.first_loc = pl.points[0]
+        pl.save()
 
 if __name__ == '__main__':
     logging.basicConfig()
     logger = logging.getLogger(__file__)
     logger.setLevel(logging.INFO)
-    logger.info("test!")
     refresh_plows()
