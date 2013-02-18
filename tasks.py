@@ -16,6 +16,6 @@ client.logger = get_task_logger(__name__)
 celery.conf.CELERYBEAT_SCHEDULE = {
     'update-plows': {
         'task': '%s.refresh_plows' % __name__,
-        'schedule': timedelta(seconds=30)
+        'schedule': timedelta(seconds=10)
     },
 }
