@@ -1,4 +1,5 @@
 URL_BASE = '/api/v1/snowplow/'
+plow_filter = 'limit=10'
 
 map = null
 plows = {}
@@ -29,10 +30,21 @@ add_plow = (plow) ->
     )
     plows[plow.id] = plow
 
-refresh_plows = ->
+reset_plows = ->
+    for plow_id of plows
+        plow = plows[plow_id]
+        map.removeLayer(plow.marker)
+        if plow.trail
+            map.removeLayer(plow.trail)
+        plow.marker = null
+    plows = {}
+
+refresh_plows = (reset) ->
     console.log "refresh"
-    url = URL_BASE + '?callback=?'
+    url = URL_BASE + '?' + plow_filter + '&callback=?'
     $.getJSON(url, (data) ->
+        if reset
+            reset_plows()
         console.log "got data for #{ data.length } plows"
         for plow_info in data
             if plow_info.id not of plows
@@ -91,3 +103,12 @@ jQuery ->
     ).addTo(map)
     refresh_plows()
     setInterval(refresh_plows, 10000)
+
+    $("#display-controls button").click ->
+        hour_count = $(@).data('hours')
+        if hour_count
+            plow_filter = "since=-#{ hour_count }hours"
+        plow_count = $(@).data('plows')
+        if plow_count
+            plow_filter = "limit=#{ plow_count }"
+        refresh_plows(true)

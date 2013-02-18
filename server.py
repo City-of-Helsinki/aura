@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import json
+import timelib
 import mongoengine
 from flask import Flask, request, make_response
 from flask.ext import restful
@@ -40,6 +41,8 @@ point_fields = {
 
 parser = reqparse.RequestParser()
 parser.add_argument('history', type=int, help="Number of location history entries to return")
+parser.add_argument('since', type=str, help="Return plows since provided time")
+parser.add_argument('limit', type=int, help="How many plows to return")
 
 class SnowPlow(restful.Resource):
     @restful.marshal_with(point_fields)
@@ -80,13 +83,23 @@ class SnowPlowList(restful.Resource):
             plows = plows.fields(slice__points=-history)
         else:
             plows = plows.exclude('points')
-        now = datetime.now()
-        # List either all the plows from the last 24h or the most recent 10 plows.
-        plows_24h = plows.filter(last_loc__timestamp__gte=now - timedelta(days=1))
-        if plows_24h.count() < 10:
-            plows = plows[0:10]
+
+        since = args['since']
+        if since:
+            try:
+                since = datetime.fromtimestamp(timelib.strtotime(since))
+            except ValueError, TypeError:
+                since = None
         else:
-            plows = plows_24h
+            since = None
+        if since:
+            plows = plows.filter(last_loc__timestamp__gte=since)
+        limit = args['history']
+        # Return by default 10 plows
+        if not since and not limit:
+            limit = 10
+        if limit > 0:
+            plows = plows[0:limit]
         return [plow_res.serialize(plow, False) for plow in plows]
 
 api.add_resource(SnowPlowList, '/api/v1/snowplow/')
