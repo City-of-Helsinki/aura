@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import mongoengine
 from flask import Flask, request, make_response
@@ -56,8 +56,13 @@ class SnowPlow(restful.Resource):
     def get(self, plow_id):
         args = parser.parse_args()
         history = args['history']
+        plows = Plow.objects
+        if history > 0:
+            plows = plows.fields(slice__points=-history)
+        else:
+            plows = plows.exclude('points')
         try:
-            plow = Plow.objects.get(id=plow_id)
+            plow = plows.get(id=plow_id)
         except Plow.DoesNotExist:
             abort(404, message="Plow {} does not exist".format(plow_id))
         return self.serialize(plow, history)
@@ -68,9 +73,20 @@ class SnowPlowList(restful.Resource):
     def get(self):
         plow_res = SnowPlow()
         args = parser.parse_args()
-
+        history = args['history']
+        plows = Plow.objects.all().order_by('-last_loc__timestamp')
         # Exclude the points field to speed up queries.
-        plows = Plow.objects.all().exclude('points')
+        if history > 0:
+            plows = plows.fields(slice__points=-history)
+        else:
+            plows = plows.exclude('points')
+        now = datetime.now()
+        # List either all the plows from the last 24h or the most recent 10 plows.
+        plows_24h = plows.filter(last_loc__timestamp__gte=now - timedelta(days=1))
+        if plows_24h.count() < 10:
+            plows = plows[0:10]
+        else:
+            plows = plows_24h
         return [plow_res.serialize(plow, False) for plow in plows]
 
 api.add_resource(SnowPlowList, '/api/v1/snowplow/')
