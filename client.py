@@ -34,7 +34,7 @@ def refresh_plows():
             # Parse ISO 8601 timestamp
             ts = datetime.datetime.strptime(ts, "%Y-%m-%dT%H:%M:%S")
             point['ts'] = ts
-            if ts > pl.last_loc.timestamp:
+            if (not pl.last_loc) or (ts > pl.last_loc.timestamp):
                 new_points.append(point)
 
         print "plow %d: %d new points" % (plow['id'], len(new_points))
