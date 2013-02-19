@@ -40,12 +40,12 @@ reset_plows = ->
     plows = {}
 
 refresh_plows = (reset) ->
-    console.log "refresh"
+    #console.log "refresh"
     url = URL_BASE + '?' + plow_filter + '&callback=?'
     $.getJSON(url, (data) ->
         if reset
             reset_plows()
-        console.log "got data for #{ data.length } plows"
+        #console.log "got data for #{ data.length } plows"
         for plow_info in data
             if plow_info.id not of plows
                 plow = add_plow(plow_info)
@@ -56,7 +56,7 @@ refresh_plows = (reset) ->
                 old_ll = marker.getLatLng()
                 coords = plow_info.last_loc.coords
                 new_ll = new L.LatLng(coords[1], coords[0])
-                console.log "plow #{plow.id} moved " + new_ll.distanceTo(old_ll)
+                #console.log "plow #{plow.id} moved " + new_ll.distanceTo(old_ll)
                 marker.setLatLng(new_ll)
                 plow.last_loc = plow_info.last_loc
 
@@ -68,7 +68,7 @@ refresh_plows = (reset) ->
 show_plow_trail = (plow) ->
     url = URL_BASE + plow.id + '?history=500&callback=?'
     $.getJSON(url, (data) ->
-        console.log "history for " + plow.id
+        #console.log "history for " + plow.id
         # First remove all other trails
         for plow_id of plows
             p = plows[plow_id]
