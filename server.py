@@ -49,11 +49,10 @@ class SnowPlow(restful.Resource):
     def serialize_point(self, point):
         return point
 
-    def serialize(self, plow, history):
+    def serialize(self, plow):
         last_loc = self.serialize_point(plow.last_loc)
         ret = {'id': unicode(plow.id), 'last_loc': last_loc}
-        if history and history > 0:
-            ret['history'] = [self.serialize_point(p) for p in plow.points[-history:-1]]
+        ret['history'] = [self.serialize_point(p) for p in plow.points]
         return ret
 
     def get(self, plow_id):
@@ -68,7 +67,7 @@ class SnowPlow(restful.Resource):
             plow = plows.get(id=plow_id)
         except Plow.DoesNotExist:
             abort(404, message="Plow {} does not exist".format(plow_id))
-        return self.serialize(plow, history)
+        return self.serialize(plow)
 
 api.add_resource(SnowPlow, '/api/v1/snowplow/<int:plow_id>')
 
@@ -100,7 +99,7 @@ class SnowPlowList(restful.Resource):
             limit = 10
         if limit > 0:
             plows = plows[0:limit]
-        return [plow_res.serialize(plow, False) for plow in plows]
+        return [plow_res.serialize(plow) for plow in plows]
 
 api.add_resource(SnowPlowList, '/api/v1/snowplow/')
 
