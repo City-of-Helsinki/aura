@@ -59,14 +59,24 @@ class SnowPlow(restful.Resource):
         args = parser.parse_args()
         history = args['history']
         plows = Plow.objects
+
+        since = args['since']
+        if since:
+            try:
+                since = datetime.fromtimestamp(timelib.strtotime(since))
+            except ValueError, TypeError:
+                since = None
+
         if history > 0:
             plows = plows.fields(slice__points=-history)
-        else:
+        elif not since:
             plows = plows.exclude('points')
         try:
             plow = plows.get(id=plow_id)
         except Plow.DoesNotExist:
             abort(404, message="Plow {} does not exist".format(plow_id))
+        if since:
+            plow.points = [p for p in plow.points if p.timestamp >= since]
         return self.serialize(plow)
 
 api.add_resource(SnowPlow, '/api/v1/snowplow/<int:plow_id>')
