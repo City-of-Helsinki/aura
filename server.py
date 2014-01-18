@@ -56,6 +56,7 @@ parser = reqparse.RequestParser()
 parser.add_argument('history', type=int, help="Number of location history entries to return")
 parser.add_argument('since', type=str, help="Return plows since provided time")
 parser.add_argument('limit', type=int, help="How many plows to return")
+parser.add_argument('temporal_resolution', type=int, help="Temporal resolution of historical plow locations")
 
 class SnowPlow(restful.Resource):
     @restful.marshal_with(point_fields)
@@ -80,6 +81,13 @@ class SnowPlow(restful.Resource):
             except ValueError, TypeError:
                 since = None
 
+        temporal_resolution = args['temporal_resolution']
+        if temporal_resolution:
+            try:
+                temporal_resolution = int(temporal_resolution)
+            except ValueError:
+                temporal_resolution = None
+
         if history > 0:
             plows = plows.fields(slice__points=-history)
         elif not since:
@@ -90,6 +98,18 @@ class SnowPlow(restful.Resource):
             abort(404, message="Plow {} does not exist".format(plow_id))
         if since:
             plow.points = [p for p in plow.points if p.timestamp >= since]
+
+        if temporal_resolution is not None:
+            out = []
+            for p in plow.points:
+                if not out:
+                    out.append(p)
+                    continue
+                delta = p.timestamp - out[-1].timestamp
+                if delta < timedelta(seconds=temporal_resolution):
+                    continue
+                out.append(p)
+            plow.points = out
         return self.serialize(plow)
 
 api.add_resource(SnowPlow, '/api/v1/snowplow/<int:plow_id>')
