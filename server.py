@@ -12,6 +12,19 @@ import settings
 app = Flask(__name__)
 api = restful.Api(app)
 
+CORS_HEADERS = [
+    ("Access-Control-Allow-Origin", "*"),
+    ("Access-Control-Allow-Methods", ', '.join(["GET", "OPTIONS"])),
+    ("Access-Control-Allow-Headers", ', '.join(["Content-Type"])),
+]
+
+def add_cors_headers(resp):
+    for hdr in CORS_HEADERS:
+        resp.headers.add_header(hdr[0], hdr[1])
+    return resp
+app.after_request(add_cors_headers)
+
+
 @api.representation('application/json')
 def output_jsonp(data, code, headers=None):
     json_str = json.dumps(data)
