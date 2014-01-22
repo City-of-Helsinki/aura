@@ -1,41 +1,17 @@
 #!/usr/bin/env python
 
-from sqlalchemy import create_engine, ForeignKey, Column, Integer, \
-        String, DateTime, Index, Float
-from sqlalchemy.orm import relationship, backref, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
-Base = declarative_base()
+from sqlmodels import *
 
-class Plow(Base):
-    __tablename__ = 'plows'
+import settings
 
-    id = Column(Integer, primary_key=True, index=True)
-
-class Point(Base):
-    __tablename__ = 'points'
-
-    id = Column(Integer, primary_key=True)
-
-    plow_id = Column(Integer, ForeignKey('plows.id'), index=True)
-    plow = relationship('Plow', backref=backref('points', order_by=id))
-    idx = Column(Integer)
-
-    timestamp = Column(DateTime, index=True)
-    lat = Column(Float)
-    lon = Column(Float)
-
-    __table_args__ = (Index('ix_points_plow_idx', 'plow_id', 'idx'),)
-
-engine = create_engine('sqlite:///test.db')
-
+engine = create_engine(settings.DATABASE_URL)
 Base.metadata.create_all(engine)
-
 session = sessionmaker(bind=engine)()
 
 from models import Plow as MongoPlow
-
-import settings
 import mongoengine
 
 mongoengine.connect(settings.MONGO_DB)
@@ -43,7 +19,7 @@ mongoengine.connect(settings.MONGO_DB)
 count = MongoPlow.objects.count()
 print("%d plows" % count)
 
-for plow_idx, mp in enumerate(MongoPlow.objects.all()):
+def migrate_plow(mp, event_types):
     plow = session.query(Plow).filter_by(id=mp.id).first()
     if not plow:
         plow = Plow(id=mp.id)
@@ -55,11 +31,36 @@ for plow_idx, mp in enumerate(MongoPlow.objects.all()):
         del plow.points
 
     if p_count != len(mp.points):
+        last_timestamp = None
         for idx, mpoint in enumerate(mp.points):
-            pnt = Point(plow=plow, idx=idx, timestamp=mpoint.timestamp)
+            pnt = Point(plow=plow, index=idx, timestamp=mpoint.timestamp)
             pnt.lon = mpoint.coords[0]
             pnt.lat = mpoint.coords[1]
+            last_timestamp = mpoint.timestamp
             session.add(pnt)
+            for ev_type in mpoint.events:
+                if ev_type not in event_types:
+                    print("Adding new event type %s" % ev_type)
+                    ev = EventType(id=ev_type)
+                    session.add(ev)
+                    event_types[ev_type] = ev
+                else:
+                    ev = event_types[ev_type]
+                pnt.events.append(ev)
+
+        plow.last_timestamp = last_timestamp
     session.commit()
-    if plow_idx % 10 == 0:
-        print(plow_idx)
+
+event_types = {}
+for ev in session.query(EventType):
+    event_types[ev.id] = ev
+
+PER_PAGE = 20
+mongo_count = MongoPlow.objects.count()
+plow_idx = 0
+while plow_idx < mongo_count:
+    plow_list = MongoPlow.objects.limit(PER_PAGE).skip(plow_idx)
+    for plow in plow_list:
+        migrate_plow(plow, event_types)
+    plow_idx += plow_list.count()
+    print(plow_idx)

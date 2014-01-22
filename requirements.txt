@@ -5,3 +5,4 @@ requests-cache
 celery-with-mongodb
 timelib
 SQLAlchemy
+flask-sqlalchemy

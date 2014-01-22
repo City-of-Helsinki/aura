@@ -5,11 +5,20 @@ import mongoengine
 from flask import Flask, request, make_response
 from flask.ext import restful
 from flask.ext.restful import fields, reqparse, abort
+from flask.ext.sqlalchemy import SQLAlchemy
 
-from models import *
+from sqlalchemy import create_engine, desc
+from sqlalchemy.orm import sessionmaker, joinedload, subqueryload
+
+from sqlmodels import *
 import settings
 
+
 app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = settings.DATABASE_URL
+#app.config['SQLALCHEMY_ECHO'] = True
+db = SQLAlchemy(app)
+
 api = restful.Api(app)
 
 CORS_HEADERS = [
@@ -61,18 +70,23 @@ parser.add_argument('temporal_resolution', type=int, help="Temporal resolution o
 class SnowPlow(restful.Resource):
     @restful.marshal_with(point_fields)
     def serialize_point(self, point):
-        return point
+        d = {'coords': [point.lon, point.lat]}
+        d['timestamp'] = point.timestamp
+        d['events'] = [ev.id for ev in point.events]
+        return d
 
-    def serialize(self, plow):
-        last_loc = self.serialize_point(plow.last_loc)
-        ret = {'id': unicode(plow.id), 'last_loc': last_loc}
-        ret['history'] = [self.serialize_point(p) for p in plow.points]
+    def serialize(self, plow, points=[]):
+        ret = {'id': unicode(plow.id)}
+        last_loc = db.session.query(Point).options(subqueryload(Point.events)).filter_by(plow_id=plow.id).order_by(desc("`index`")).first()
+        if last_loc:
+            last_loc = self.serialize_point(last_loc)
+        ret = {'id': unicode(plow.id), 'last_location': last_loc}
+        ret['location_history'] = [self.serialize_point(p) for p in points]
         return ret
 
     def get(self, plow_id):
         args = parser.parse_args()
         history = args['history']
-        plows = Plow.objects
 
         since = args['since']
         if since:
@@ -88,20 +102,22 @@ class SnowPlow(restful.Resource):
             except ValueError:
                 temporal_resolution = None
 
-        if history > 0:
-            plows = plows.fields(slice__points=-history)
-        elif not since:
-            plows = plows.exclude('points')
-        try:
-            plow = plows.get(id=plow_id)
-        except Plow.DoesNotExist:
+        plow = db.session.query(Plow).filter_by(id=plow_id).first()
+        if not plow:
             abort(404, message="Plow {} does not exist".format(plow_id))
+
+        points = db.session.query(Point).filter_by(plow=plow).order_by("'index'")
+        points = points.options(subqueryload(Point.events))
         if since:
-            plow.points = [p for p in plow.points if p.timestamp >= since]
+            points = points.filter(Point.timestamp >= since)
+        elif history > 0:
+            points = points[-history:]
+        else:
+            points = []
 
         if temporal_resolution is not None:
             out = []
-            for p in plow.points:
+            for p in points:
                 if not out:
                     out.append(p)
                     continue
@@ -109,22 +125,16 @@ class SnowPlow(restful.Resource):
                 if delta < timedelta(seconds=temporal_resolution):
                     continue
                 out.append(p)
-            plow.points = out
-        return self.serialize(plow)
+            points = out
+        return self.serialize(plow, points)
 
 api.add_resource(SnowPlow, '/api/v1/snowplow/<int:plow_id>')
 
 class SnowPlowList(restful.Resource):
     def get(self):
+        plows = db.session.query(Plow).order_by(desc('last_timestamp'))
         plow_res = SnowPlow()
         args = parser.parse_args()
-        history = args['history']
-        plows = Plow.objects.all().order_by('-last_loc__timestamp')
-        # Exclude the points field to speed up queries.
-        if history > 0:
-            plows = plows.fields(slice__points=-history)
-        else:
-            plows = plows.exclude('points')
 
         since = args['since']
         if since:
@@ -135,8 +145,9 @@ class SnowPlowList(restful.Resource):
         else:
             since = None
         if since:
-            plows = plows.filter(last_loc__timestamp__gte=since)
-        limit = args['history']
+            plows = plows.filter(Plow.last_timestamp >= since)
+
+        limit = args['limit']
         # Return by default 10 plows
         if not since and not limit:
             limit = 10
@@ -145,8 +156,6 @@ class SnowPlowList(restful.Resource):
         return [plow_res.serialize(plow) for plow in plows]
 
 api.add_resource(SnowPlowList, '/api/v1/snowplow/')
-
-mongoengine.connect(settings.MONGO_DB)
 
 if __name__ == '__main__':
     app.run(debug=True)
