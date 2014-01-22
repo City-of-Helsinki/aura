@@ -77,7 +77,7 @@ class SnowPlow(restful.Resource):
 
     def serialize(self, plow, points=[]):
         ret = {'id': unicode(plow.id)}
-        last_loc = db.session.query(Point).options(subqueryload(Point.events)).filter_by(plow_id=plow.id).order_by(desc("`index`")).first()
+        last_loc = db.session.query(Point).options(subqueryload(Point.events)).filter_by(plow_id=plow.id).order_by(desc('"index"')).first()
         if last_loc:
             last_loc = self.serialize_point(last_loc)
         ret = {'id': unicode(plow.id), 'last_location': last_loc}
@@ -106,7 +106,7 @@ class SnowPlow(restful.Resource):
         if not plow:
             abort(404, message="Plow {} does not exist".format(plow_id))
 
-        points = db.session.query(Point).filter_by(plow=plow).order_by("'index'")
+        points = db.session.query(Point).filter_by(plow=plow).order_by('"index"')
         points = points.options(subqueryload(Point.events))
         if since:
             points = points.filter(Point.timestamp >= since)

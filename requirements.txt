@@ -6,3 +6,4 @@ celery-with-mongodb
 timelib
 SQLAlchemy
 flask-sqlalchemy
+psycopg2

@@ -49,13 +49,12 @@ def migrate_plow(mp, event_types):
                 pnt.events.append(ev)
 
         plow.last_timestamp = last_timestamp
-    session.commit()
 
 event_types = {}
 for ev in session.query(EventType):
     event_types[ev.id] = ev
 
-PER_PAGE = 20
+PER_PAGE = 50
 mongo_count = MongoPlow.objects.count()
 plow_idx = 0
 while plow_idx < mongo_count:
@@ -64,3 +63,4 @@ while plow_idx < mongo_count:
         migrate_plow(plow, event_types)
     plow_idx += plow_list.count()
     print(plow_idx)
+    session.commit()
