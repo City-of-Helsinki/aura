@@ -17,7 +17,7 @@ def refresh_plows():
     r = requests.get(settings.URL, auth=settings.AUTH)
     if r.status_code != 200:
         raise Exception("HTTP request failed with HTTP%d" % r.status_code)
-    plow_list = r.json
+    plow_list = r.json()
     print "got info for %d plows" % len(plow_list)
     for plow in plow_list:
         # Exclude points at first for performance reasons
