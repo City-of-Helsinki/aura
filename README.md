@@ -1,3 +1,12 @@
+Architecture
+============
+
+![Architecture diagram](https://rawgithub.com/City-of-Helsinki/aura/master/Docs/architecture.svg)
+
+Old architecture diagram
+------------------------
+![Old architecture diagram](https://rawgithub.com/City-of-Helsinki/aura/master/Docs/architecture-old.svg)
+
 Installation
 ============
 
