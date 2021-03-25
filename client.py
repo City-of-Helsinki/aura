@@ -68,7 +68,7 @@ def refresh_plow(info):
 
 def refresh_plows():
     print "connecting"
-    r = requests.get(settings.URL, auth=settings.AUTH)
+    r = requests.get(settings.URL, auth=settings.AUTH, verify=False)
     if r.status_code != 200:
         raise Exception("HTTP request failed with HTTP%d" % r.status_code)
     plow_list = r.json()
